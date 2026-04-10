@@ -44,58 +44,73 @@ window.onload = function () {
     })
   );
 
-  // 🇺🇸 USA View
+  // 🇺🇸 Camera
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(-98.5795, 39.8283, 2500000)
   });
 
   // =========================
-  // 🌎 EARTHQUAKES
+  // ✈️ REAL FLIGHTS (BACKEND)
   // =========================
-  fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson")
-    .then(res => res.json())
-    .then(data => {
-      data.features.forEach(eq => {
-        const c = eq.geometry.coordinates;
-        viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(c[0], c[1]),
-          point: {
-            pixelSize: 6,
-            color: Cesium.Color.YELLOW
-          },
-          description: `<b>${eq.properties.place}</b><br>Mag: ${eq.properties.mag}`
+  const flights = {};
+
+  function updateFlights() {
+    fetch("http://localhost:3000/flights")
+      .then(res => res.json())
+      .then(data => {
+
+        data.states.forEach(f => {
+
+          if (!f[5] || !f[6]) return;
+
+          const id = f[0];
+
+          const position = Cesium.Cartesian3.fromDegrees(f[5], f[6], f[7] || 10000);
+
+          if (!flights[id]) {
+            flights[id] = viewer.entities.add({
+              position,
+              billboard: {
+                image: "https://img.icons8.com/ios-filled/50/00ffff/airplane-take-off.png",
+                scale: 0.6
+              },
+              description: `<b>✈️ Flight</b><br>${f[1] || "N/A"}`
+            });
+          }
+
+          flights[id].position = position;
+
         });
+
       });
+  }
+
+  updateFlights();
+  setInterval(updateFlights, 15000);
+
+  // =========================
+  // 🛰️ MULTIPLE SATELLITES
+  // =========================
+  for (let i = 0; i < 5; i++) {
+    let lon = -180 + (i * 60);
+
+    const sat = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(lon, 0, 400000),
+      billboard: {
+        image: "https://img.icons8.com/ios-filled/50/ffffff/satellite.png",
+        scale: 0.6
+      }
     });
 
-  // =========================
-  // ✈️ REAL FLIGHTS (OpenSky)
-  // =========================
-  fetch("https://opensky-network.org/api/states/all")
-    .then(res => res.json())
-    .then(data => {
-      data.states.slice(0, 50).forEach(flight => {
-        if (!flight[5] || !flight[6]) return;
-
-        viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(flight[5], flight[6], flight[7] || 10000),
-          billboard: {
-            image: "https://img.icons8.com/ios-filled/50/00ffff/airplane-take-off.png",
-            scale: 0.5
-          },
-          description: `
-            <b>✈️ Flight</b><br>
-            Callsign: ${flight[1] || "N/A"}<br>
-            Country: ${flight[2]}<br>
-            Altitude: ${flight[7] || "N/A"}
-          `
-        });
-      });
-    })
-    .catch(() => console.log("Flight API blocked (CORS)"));
+    setInterval(() => {
+      lon += 0.3;
+      if (lon > 180) lon = -180;
+      sat.position = Cesium.Cartesian3.fromDegrees(lon, 0, 400000);
+    }, 100);
+  }
 
   // =========================
-  // 🚢 SHIPS
+  // 🚢 SHIPS (FIXED VISIBILITY)
   // =========================
   [
     [-90, 29],
@@ -106,66 +121,9 @@ window.onload = function () {
       position: Cesium.Cartesian3.fromDegrees(coord[0], coord[1]),
       billboard: {
         image: "https://img.icons8.com/ios-filled/50/00ff00/ship.png",
-        scale: 0.6
+        scale: 1.0 // 👈 bigger so you SEE them
       },
       description: "🚢 Ship"
-    });
-  });
-
-  // =========================
-  // 🚨 NEWS EVENTS
-  // =========================
-  fetch(`https://newsapi.org/v2/everything?q=disaster OR explosion OR shooting&apiKey=a39135b91d48431ea24e6d90ca07d7b9`)
-    .then(res => res.json())
-    .then(data => {
-      data.articles.slice(0, 8).forEach(article => {
-        const lon = -125 + Math.random() * 50;
-        const lat = 25 + Math.random() * 20;
-
-        viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(lon, lat),
-          billboard: {
-            image: "https://img.icons8.com/emoji/48/star-emoji.png",
-            scale: 0.6
-          },
-          description: `<b>${article.title}</b><br><a href="${article.url}" target="_blank">Read</a>`
-        });
-      });
-    });
-
-  // =========================
-  // 🛰️ SATELLITE
-  // =========================
-  let satLon = -100;
-  const sat = viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(satLon, 0, 400000),
-    billboard: {
-      image: "https://img.icons8.com/ios-filled/50/ffffff/satellite.png",
-      scale: 0.6
-    },
-    description: "🛰️ Satellite"
-  });
-
-  setInterval(() => {
-    satLon += 0.5;
-    if (satLon > 180) satLon = -180;
-    sat.position = Cesium.Cartesian3.fromDegrees(satLon, 0, 400000);
-  }, 100);
-
-  // =========================
-  // 📡 NETWORK OUTAGES
-  // =========================
-  [
-    { lon: -122, lat: 37, name: "West Coast Outage" },
-    { lon: -74, lat: 40, name: "NYC ISP Issue" }
-  ].forEach(e => {
-    viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(e.lon, e.lat),
-      billboard: {
-        image: "https://img.icons8.com/ios-filled/50/ff0000/wifi-off.png",
-        scale: 0.7
-      },
-      description: `<b>Network Outage</b><br>${e.name}`
     });
   });
 
