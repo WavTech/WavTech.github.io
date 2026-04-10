@@ -3,7 +3,6 @@
 <head>
   <title>Wav-View</title>
 
-  <!-- Cesium -->
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.140/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.140/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 
@@ -16,7 +15,6 @@
       overflow: hidden;
       background: black;
     }
-
     #cesiumContainer {
       width: 100%;
       height: 100vh;
@@ -25,128 +23,153 @@
 </head>
 
 <body>
-  <div id="cesiumContainer"></div>
+<div id="cesiumContainer"></div>
 
-  <script>
-    window.onload = function () {
+<script>
+window.onload = function () {
 
-      // 🔑 TOKEN
-      Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIyYjI2MjRiMC1kYzQ0LTQ1MjItYjJmZC1mMTQ2MTIyZTYwMjIiLCJpZCI6NDE2NTYyLCJpYXQiOjE3NzU4NDczNzN9.YwRL_qoLYSL8lQjPZE_ttVV9V5ORcungi-rNihZCRQ8';
+  Cesium.Ion.defaultAccessToken = 'YOUR_TOKEN';
 
-      const viewer = new Cesium.Viewer('cesiumContainer', {
-        animation: false,
-        timeline: false,
-        baseLayerPicker: false
-      });
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    animation: false,
+    timeline: false,
+    baseLayerPicker: false
+  });
 
-      // =========================
-      // 🗺️ MAP (OSM with labels)
-      // =========================
-      viewer.imageryLayers.removeAll();
-      viewer.imageryLayers.addImageryProvider(
-        new Cesium.OpenStreetMapImageryProvider({
-          url: "https://a.tile.openstreetmap.org/"
-        })
-      );
+  // 🌍 Map
+  viewer.imageryLayers.removeAll();
+  viewer.imageryLayers.addImageryProvider(
+    new Cesium.OpenStreetMapImageryProvider({
+      url: "https://a.tile.openstreetmap.org/"
+    })
+  );
 
-      // =========================
-      // 🇺🇸 CAMERA
-      // =========================
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(-98.5795, 39.8283, 2500000),
-        duration: 3
-      });
+  // 🇺🇸 USA View
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(-98.5795, 39.8283, 2500000)
+  });
 
-      // =========================
-      // 🌎 EARTHQUAKES (ADVANCED)
-      // =========================
-      fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson")
-        .then(res => res.json())
-        .then(data => {
-          data.features.forEach(eq => {
-            const coords = eq.geometry.coordinates;
-            const props = eq.properties;
-
-            const time = new Date(props.time).toLocaleString();
-
-            let color = Cesium.Color.YELLOW;
-            if (props.mag >= 5) color = Cesium.Color.ORANGE;
-            if (props.mag >= 6) color = Cesium.Color.RED;
-
-            viewer.entities.add({
-              position: Cesium.Cartesian3.fromDegrees(coords[0], coords[1]),
-              point: {
-                pixelSize: 8,
-                color: color
-              },
-              description: `
-                <b>🌎 Earthquake</b><br><br>
-                <b>Location:</b> ${props.place}<br>
-                <b>Magnitude:</b> ${props.mag}<br>
-                <b>Depth:</b> ${coords[2]} km<br>
-                <b>Time:</b> ${time}<br>
-                <b>Significance:</b> ${props.sig}<br>
-                <b>Tsunami Alert:</b> ${props.tsunami ? "Yes ⚠️" : "No"}
-              `
-            });
-          });
-        });
-
-      // =========================
-      // ✈️ AIRCRAFT
-      // =========================
-      let lon = -120;
-
-      const flight = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(lon, 35, 10000),
-        point: {
-          pixelSize: 8,
-          color: Cesium.Color.CYAN
-        },
-        description: `
-          <b>Aircraft</b><br>
-          Altitude: 10,000 ft<br>
-          Status: En Route
-        `
-      });
-
-      setInterval(() => {
-        lon += 0.2;
-        flight.position = Cesium.Cartesian3.fromDegrees(lon, 35, 10000);
-      }, 200);
-
-      // =========================
-      // 🚢 SHIPS
-      // =========================
-      [
-        [-90, 29],
-        [-122, 37],
-        [-74, 40]
-      ].forEach((coord, i) => {
+  // =========================
+  // 🌎 EARTHQUAKES
+  // =========================
+  fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson")
+    .then(res => res.json())
+    .then(data => {
+      data.features.forEach(eq => {
+        const c = eq.geometry.coordinates;
         viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(coord[0], coord[1]),
+          position: Cesium.Cartesian3.fromDegrees(c[0], c[1]),
           point: {
-            pixelSize: 8,
-            color: Cesium.Color.GREEN
+            pixelSize: 6,
+            color: Cesium.Color.YELLOW
           },
-          description: `<b>Ship ${i + 1}</b><br>Status: Active`
+          description: `<b>${eq.properties.place}</b><br>Mag: ${eq.properties.mag}`
         });
       });
+    });
 
-      // =========================
-      // 🚗 TRAFFIC ZONE
-      // =========================
-      viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(-90.05, 35.15),
-        ellipse: {
-          semiMinorAxis: 3000,
-          semiMajorAxis: 3000,
-          material: Cesium.Color.RED.withAlpha(0.4)
-        },
-        description: `<b>Traffic Congestion</b><br>High traffic area`
+  // =========================
+  // ✈️ REAL FLIGHTS (OpenSky)
+  // =========================
+  fetch("https://opensky-network.org/api/states/all")
+    .then(res => res.json())
+    .then(data => {
+      data.states.slice(0, 50).forEach(flight => {
+        if (!flight[5] || !flight[6]) return;
+
+        viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(flight[5], flight[6], flight[7] || 10000),
+          billboard: {
+            image: "https://img.icons8.com/ios-filled/50/00ffff/airplane-take-off.png",
+            scale: 0.5
+          },
+          description: `
+            <b>✈️ Flight</b><br>
+            Callsign: ${flight[1] || "N/A"}<br>
+            Country: ${flight[2]}<br>
+            Altitude: ${flight[7] || "N/A"}
+          `
+        });
       });
+    })
+    .catch(() => console.log("Flight API blocked (CORS)"));
 
-    };
-  </script>
+  // =========================
+  // 🚢 SHIPS
+  // =========================
+  [
+    [-90, 29],
+    [-122, 37],
+    [-74, 40]
+  ].forEach(coord => {
+    viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(coord[0], coord[1]),
+      billboard: {
+        image: "https://img.icons8.com/ios-filled/50/00ff00/ship.png",
+        scale: 0.6
+      },
+      description: "🚢 Ship"
+    });
+  });
+
+  // =========================
+  // 🚨 NEWS EVENTS
+  // =========================
+  fetch(`https://newsapi.org/v2/everything?q=disaster OR explosion OR shooting&apiKey=a39135b91d48431ea24e6d90ca07d7b9`)
+    .then(res => res.json())
+    .then(data => {
+      data.articles.slice(0, 8).forEach(article => {
+        const lon = -125 + Math.random() * 50;
+        const lat = 25 + Math.random() * 20;
+
+        viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(lon, lat),
+          billboard: {
+            image: "https://img.icons8.com/emoji/48/star-emoji.png",
+            scale: 0.6
+          },
+          description: `<b>${article.title}</b><br><a href="${article.url}" target="_blank">Read</a>`
+        });
+      });
+    });
+
+  // =========================
+  // 🛰️ SATELLITE
+  // =========================
+  let satLon = -100;
+  const sat = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(satLon, 0, 400000),
+    billboard: {
+      image: "https://img.icons8.com/ios-filled/50/ffffff/satellite.png",
+      scale: 0.6
+    },
+    description: "🛰️ Satellite"
+  });
+
+  setInterval(() => {
+    satLon += 0.5;
+    if (satLon > 180) satLon = -180;
+    sat.position = Cesium.Cartesian3.fromDegrees(satLon, 0, 400000);
+  }, 100);
+
+  // =========================
+  // 📡 NETWORK OUTAGES
+  // =========================
+  [
+    { lon: -122, lat: 37, name: "West Coast Outage" },
+    { lon: -74, lat: 40, name: "NYC ISP Issue" }
+  ].forEach(e => {
+    viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(e.lon, e.lat),
+      billboard: {
+        image: "https://img.icons8.com/ios-filled/50/ff0000/wifi-off.png",
+        scale: 0.7
+      },
+      description: `<b>Network Outage</b><br>${e.name}`
+    });
+  });
+
+};
+</script>
 </body>
 </html>
